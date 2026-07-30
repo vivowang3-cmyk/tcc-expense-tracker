@@ -965,13 +965,13 @@ function closeMonthCat() {
 function toggleUnreimbursed(id){
   id=String(id);
   const idx=unreimbursedIds.indexOf(id);
-  const idx=unreimbursedIds.indexOf(id);
   if(idx>=0){unreimbursedIds.splice(idx,1)}
   else{unreimbursedIds.push(id)}
   saveUnreimbursed();
   updateSummary();
   applyFilters();
 }
+
 
 function bindEvents(){
   document.getElementById('searchInput').addEventListener('input',applyFilters);
