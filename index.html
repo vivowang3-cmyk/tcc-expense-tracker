@@ -502,8 +502,7 @@ const pageSize = 20;
 let charts = {monthly:null, balance:null};
 let currentView = 'dashboard';
 let drillMonth = null;
-let unreimbursedIds = JSON.parse(localStorage.getItem('unreimbursedIds') || '[]').map(id=>String(id));
-function saveUnreimbursed(){localStorage.setItem('unreimbursedIds', JSON.stringify(unreimbursedIds))}
+let unreimbursedIds = [];
 
 // ===== Expense auto-classification (from reason field) =====
 const CAT_RULES=[
@@ -617,7 +616,8 @@ async function init(){
   try{
     document.getElementById('loadingScreen').classList.remove('hidden');
     allData = await loadData();
-    allData.forEach(r=>{if(r.id!==undefined)r.id=String(r.id)});
+    allData.forEach(r=>{if(r.id!==undefined)r.id=String(r.id);r.unreimbursed=!!r.unreimbursed});
+    unreimbursedIds=allData.filter(r=>r.unreimbursed).map(r=>String(r.id));
     recalcBalance();
     if(allData.length>0){
       document.getElementById('dateRange').textContent=allData[0].date+' ~ '+allData[allData.length-1].date;
@@ -640,7 +640,7 @@ function updateSummary(){
   const bal=inc-exp;
   const iTx=allData.filter(r=>r.income).length;
   const eTx=allData.filter(r=>r.expense).length;
-  const unItems=allData.filter(r=>unreimbursedIds.includes(r.id));
+  const unItems=allData.filter(r=>r.unreimbursed);
   const unTotal=unItems.reduce((s,r)=>s+(r.expense||0)+(r.income||0),0);
   document.getElementById('totalIncome').textContent=fmtMoneyShort(inc);
   document.getElementById('totalExpense').textContent=fmtMoneyShort(exp);
@@ -655,7 +655,7 @@ function updateSummary(){
 }
 
 function renderDashboard(){
-  const unItems=allData.filter(r=>unreimbursedIds.includes(r.id));
+  const unItems=allData.filter(r=>r.unreimbursed);
   const unTotal=unItems.reduce((s,r)=>s+(r.expense||0)+(r.income||0),0);
   const unSection=document.getElementById('unreimbursedSection');
   const unBody=document.getElementById('unreimbursedBody');
@@ -779,8 +779,8 @@ function applyFilters(){
     if(cat&&r.category!==cat)return false;
     if(month&&getMonth(r.date)!==month)return false;
     if(search){const t=((r.reason||'')+(r.payer||'')+(r.note||'')).toLowerCase();if(!t.includes(search))return false}
-    if(unFilter==='1'&&!unreimbursedIds.includes(r.id))return false;
-    if(unFilter==='0'&&unreimbursedIds.includes(r.id))return false;
+    if(unFilter==='1'&&!r.unreimbursed)return false;
+    if(unFilter==='0'&&r.unreimbursed)return false;
     return true;
   });
   sortData();currentPage=1;renderAll();
@@ -808,7 +808,7 @@ function renderTable(){
   if(!pageData.length){tbody.innerHTML='<tr><td colspan="8" class="empty">\u6682\u65e0\u6570\u636e</td></tr>'}
   else{
     tbody.innerHTML=pageData.map(r=>{
-      const isUnreimbursed=unreimbursedIds.includes(r.id);
+      const isUnreimbursed=r.unreimbursed;
       const rowClass=isUnreimbursed?'row-unreimbursed':'';
       const tag=r.category==='\u6536\u6b3e'?'<span class="tag tag-income">\u6536\u6b3e</span>':'<span class="tag tag-expense">\u4ed8\u6b3e</span>';
       const inc=r.income?'<span class="amount-income">'+fmtMoney(r.income)+'</span>':'<span class="amount-zero">-</span>';
@@ -962,14 +962,18 @@ function closeMonthCat() {
   if (monthCatChart) { monthCatChart.destroy(); monthCatChart = null; }
 }
 
-function toggleUnreimbursed(id){
+async function toggleUnreimbursed(id){
   id=String(id);
-  const idx=unreimbursedIds.indexOf(id);
-  if(idx>=0){unreimbursedIds.splice(idx,1)}
-  else{unreimbursedIds.push(id)}
-  saveUnreimbursed();
-  updateSummary();
-  applyFilters();
+  const r=allData.find(x=>String(x.id)===id);
+  if(!r)return;
+  const newVal=!r.unreimbursed;
+  try{
+    await updateRecord(id,{unreimbursed:newVal});
+    r.unreimbursed=newVal;
+    if(newVal){if(!unreimbursedIds.includes(id))unreimbursedIds.push(id)}
+    else{const ui=unreimbursedIds.indexOf(id);if(ui>=0)unreimbursedIds.splice(ui,1)}
+    updateSummary();applyFilters();
+  }catch(e){alert('更新失败: '+e.message)}
 }
 
 
@@ -1043,7 +1047,7 @@ async function doDelete(){
     await deleteRecord(id);
     allData=allData.filter(x=>x.id!==id);
     const ui=unreimbursedIds.indexOf(id);
-    if(ui>=0){unreimbursedIds.splice(ui,1);saveUnreimbursed()}
+    if(ui>=0)unreimbursedIds.splice(ui,1);
     recalcBalance();
     pendingDeleteId=null;
     document.getElementById('confirmOverlay').classList.remove('active');
