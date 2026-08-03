@@ -1205,9 +1205,16 @@ async function saveBatchSalary(){
     closeModal();updateSummary();applyFilters();
     alert('成功保存 '+records.length+' 条工资记录');
   }catch(e){
-    alert('保存失败: '+e.message);
+    alert('\u4fdd\u5b58\u5931\u8d25: '+e.message);
   }
 }
+
+async function saveRecord(){
+  // Check if in batch mode
+  if(document.getElementById('batchForm').style.display !== 'none'){
+    await saveBatchSalary();
+    return;
+  }
   const editId=document.getElementById('editId').value;
   const date=document.getElementById('formDate').value;
   const category=document.getElementById('formCategory').value;
