@@ -166,21 +166,7 @@ tbody tr:hover{background:#fafbfc}
 .rank-list .rank-reason{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rank-list .rank-amount{font-weight:700;flex-shrink:0;margin-left:10px}
 .rank-bar{height:6px;border-radius:3px;margin-top:4px}
-.btn-batch{background:#8e44ad;color:#fff}
-.btn-batch:hover{opacity:.88}
-/* Batch Salary */
-.batch-toggle{display:flex;gap:8px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #eef0f3}
-.batch-toggle button{flex:1;padding:8px 12px;border:1px solid #dde1e6;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;transition:all .2s}
-.batch-toggle button.active{background:#8e44ad;color:#fff;border-color:#8e44ad}
-.batch-salary-date{margin-bottom:12px}
-.batch-salary-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
-.batch-salary-row input.name{flex:1}
-.batch-salary-row input.amt{width:120px}
-.batch-salary-row .del-btn{width:28px;height:28px;border:none;border-radius:6px;background:#f0f2f5;color:#999;cursor:pointer;font-size:16px;line-height:1}
-.batch-salary-row .del-btn:hover{background:#e74c3c;color:#fff}
-.batch-add-row{width:100%;padding:8px;border:1px dashed #dde1e6;border-radius:8px;background:#fff;color:#666;cursor:pointer;font-size:13px;margin-top:4px}
-.batch-add-row:hover{border-color:#8e44ad;color:#8e44ad}
-.batch-salary-hint{font-size:12px;color:#999;margin-top:8px}
+/* Modal */
 .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:999;justify-content:center;align-items:center}
 .modal-overlay.active{display:flex}
 .modal{background:#fff;border-radius:16px;padding:28px;width:480px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.15)}
@@ -433,43 +419,6 @@ tr.row-unreimbursed:hover{background:#ffe0b2 !important}
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <h2 id="modalTitle">新增记录</h2>
-    <input type="hidden" id="editId" value="-1">
-    <!-- Mode Toggle -->
-    <div class="batch-toggle" id="modeToggle">
-      <button class="active" onclick="switchModalMode('single')" id="btnModeSingle">单条新增</button>
-      <button onclick="switchModalMode('batch')" id="btnModeBatch">批量新增工资</button>
-    </div>
-    <!-- Single Record Form -->
-    <div id="singleForm">
-      <div class="form-group"><label>日期</label><input type="date" id="formDate"></div>
-      <div class="form-row">
-        <div class="form-group"><label>分类</label><select id="formCategory"><option value="收款">收款</option><option value="付款" selected>付款</option></select></div>
-        <div class="form-group"><label>支付人</label><input type="text" id="formPayer" value="天艺设界"></div>
-      </div>
-      <div class="form-group"><label>事由</label><input type="text" id="formReason" placeholder="如：Mike工资费用"></div>
-      <div class="form-row">
-        <div class="form-group"><label>收入金额</label><input type="number" id="formIncome" placeholder="0.00" step="0.01"></div>
-        <div class="form-group"><label>支出金额</label><input type="number" id="formExpense" placeholder="0.00" step="0.01"></div>
-      </div>
-      <div class="form-group"><label>备注</label><input type="text" id="formNote" placeholder="可选"></div>
-    </div>
-    <!-- Batch Salary Form -->
-    <div id="batchForm" style="display:none">
-      <div class="form-group batch-salary-date"><label>工资日期（统一）</label><input type="date" id="batchDate"></div>
-      <div id="batchRows">
-        <div class="batch-salary-row" data-idx="0">
-          <input type="text" class="name" placeholder="姓名，如：Mike" value="">
-          <input type="number" class="amt" placeholder="工资金额" step="0.01" value="">
-          <button class="del-btn" onclick="removeBatchRow(0)" title="删除">×</button>
-        </div>
-      </div>
-      <button class="batch-add-row" onclick="addBatchRow()">+ 添加人员</button>
-      <div class="batch-salary-hint">每人一行，填写姓名和工资金额，保存时会自动生成"XXX工资费用"记录</div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-cancel" id="cancelBtn">取消</button>
-      <button class="btn btn-save" id="saveBtn">保存</button>
-    </div>"modalTitle">新增记录</h2>
     <input type="hidden" id="editId" value="-1">
     <div class="form-group"><label>日期</label><input type="date" id="formDate"></div>
     <div class="form-row">
@@ -1081,45 +1030,6 @@ function closeModal(){
   ['formReason','formIncome','formExpense','formNote'].forEach(id=>document.getElementById(id).value='');
 }
 
-function closeModal(){
-  document.getElementById('modalOverlay').classList.remove('active');
-  document.getElementById('editId').value='';
-  document.getElementById('modalTitle').textContent='\u65b0\u589e\u8bb0\u5f55';
-  ['formReason','formIncome','formExpense','formNote'].forEach(id=>document.getElementById(id).value='');
-  switchModalMode('single');
-}
-
-// ===== Batch Salary Functions =====
-function switchModalMode(mode){
-  document.getElementById('btnModeSingle').classList.toggle('active', mode==='single');
-  document.getElementById('btnModeBatch').classList.toggle('active', mode==='batch');
-  document.getElementById('singleForm').style.display = mode==='single'?'block':'none';
-  document.getElementById('batchForm').style.display = mode==='batch'?'block':'none';
-  if(mode==='batch'){
-    document.getElementById('batchDate').value = document.getElementById('formDate').value || new Date().toISOString().substring(0,10);
-  }
-}
-
-let batchRowCount = 1;
-function addBatchRow(){
-  const container = document.getElementById('batchRows');
-  const idx = batchRowCount++;
-  const div = document.createElement('div');
-  div.className = 'batch-salary-row';
-  div.dataset.idx = idx;
-  div.innerHTML = '<input type="text" class="name" placeholder="姓名" value="">'+
-    '<input type="number" class="amt" placeholder="工资金额" step="0.01" value="">'+
-    '<button class="del-btn" onclick="removeBatchRow('+idx+')" title="删除">×</button>';
-  container.appendChild(div);
-}
-
-function removeBatchRow(idx){
-  const rows = document.querySelectorAll('.batch-salary-row');
-  if(rows.length <= 1){alert('至少需要保留一行');return;}
-  const row = document.querySelector('.batch-salary-row[data-idx="'+idx+'"]');
-  if(row) row.remove();
-}
-
 let pendingDeleteId=null;
 
 function confirmDelete(id){
@@ -1148,73 +1058,6 @@ async function doDelete(){
 }
 
 async function saveRecord(){
-  // Check if in batch mode
-  if(document.getElementById('batchForm').style.display !== 'none'){
-    await saveBatchSalary();
-    return;
-  }
-  const editId=document.getElementById('editId').value;
-  const date=document.getElementById('formDate').value;
-  const category=document.getElementById('formCategory').value;
-  const payer=document.getElementById('formPayer').value;
-  const reason=document.getElementById('formReason').value.trim();
-  const income=parseFloat(document.getElementById('formIncome').value)||null;
-  const expense=parseFloat(document.getElementById('formExpense').value)||null;
-  if(!date||!reason){alert('\u8bf7\u586b\u5199\u65e5\u671f\u548c\u4e8b\u7531');return}
-  const note=document.getElementById('formNote').value.trim()||null;
-  const rec={date,category,reason,payer,pay_method:'\u94f6\u884c',income:category==='\u6536\u6b3e'?income:null,expense:category==='\u4ed8\u6b3e'?expense:null,note};
-  try{
-    if(editId){
-      await updateRecord(editId, rec);
-      const r=allData.find(x=>x.id===editId);
-      if(r){Object.assign(r,rec)}
-    }else{
-      rec.id='EXP'+Date.now();
-      const result=await insertRecord(rec);
-      if(result&&result[0]){allData.push(result[0])}
-      else{allData.push(rec)}
-    }
-    recalcBalance();
-    closeModal();updateSummary();applyFilters();
-  }catch(e){
-    alert('\u4fdd\u5b58\u5931\u8d25: '+e.message);
-  }
-}
-
-async function saveBatchSalary(){
-  const date=document.getElementById('batchDate').value;
-  if(!date){alert('请选择工资日期');return;}
-  const rows=document.querySelectorAll('.batch-salary-row');
-  const records=[];
-  rows.forEach(row=>{
-    const name=row.querySelector('.name').value.trim();
-    const amt=parseFloat(row.querySelector('.amt').value)||0;
-    if(name&&amt>0){
-      records.push({date,category:'付款',reason:name+'工资费用',payer:'天艺设界',pay_method:'银行',income:null,expense:amt,note:null});
-    }
-  });
-  if(records.length===0){alert('请至少填写一条有效的工资记录');return;}
-  try{
-    for(const rec of records){
-      rec.id='EXP'+Date.now()+Math.floor(Math.random()*1000);
-      const result=await insertRecord(rec);
-      if(result&&result[0]){allData.push(result[0])}
-      else{allData.push(rec)}
-    }
-    recalcBalance();
-    closeModal();updateSummary();applyFilters();
-    alert('成功保存 '+records.length+' 条工资记录');
-  }catch(e){
-    alert('\u4fdd\u5b58\u5931\u8d25: '+e.message);
-  }
-}
-
-async function saveRecord(){
-  // Check if in batch mode
-  if(document.getElementById('batchForm').style.display !== 'none'){
-    await saveBatchSalary();
-    return;
-  }
   const editId=document.getElementById('editId').value;
   const date=document.getElementById('formDate').value;
   const category=document.getElementById('formCategory').value;
