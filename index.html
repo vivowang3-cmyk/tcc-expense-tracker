@@ -1040,15 +1040,17 @@ function closeMonthCat() {
   if (monthCatChart) { monthCatChart.destroy(); monthCatChart = null; }
 }
 
-async function toggleUnreimbursed(id){
+async function toggleUnreimbursed(id,targetStatus){
   id=String(id);
   const r=allData.find(x=>String(x.id)===id);
   if(!r)return;
-  const status=getReimburseStatus(r);
-  let patch, nextStatus;
-  if(status===0){nextStatus=1;patch={unreimbursed:true,reimbursed:false};}
-  else if(status===1){nextStatus=2;patch={unreimbursed:false,reimbursed:true};}
-  else{nextStatus=0;patch={unreimbursed:false,reimbursed:false};}
+  const current=getReimburseStatus(r);
+  // If clicking same status, clear it (back to 0)
+  let nextStatus = (targetStatus===current) ? 0 : targetStatus;
+  let patch;
+  if(nextStatus===0){patch={unreimbursed:false,reimbursed:false};}
+  else if(nextStatus===1){patch={unreimbursed:true,reimbursed:false};}
+  else{patch={unreimbursed:false,reimbursed:true};}
   try{
     await updateRecord(id,patch);
     r.unreimbursed=patch.unreimbursed;
