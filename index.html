@@ -209,6 +209,10 @@ tbody tr:hover{background:#fafbfc}
 /* Unreimbursed row highlight */
 tr.row-unreimbursed{background:#fff3e0 !important}
 tr.row-unreimbursed:hover{background:#ffe0b2 !important}
+tr.row-reimbursed{background:#e8f5e9 !important}
+tr.row-reimbursed:hover{background:#c8e6c9 !important}
+.action-flag.reimbursed{background:#27ae60;color:#fff}
+.action-flag.reimbursed:hover{background:#1e8449;color:#fff}
 /* Confirm dialog */
 .confirm-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:1000;justify-content:center;align-items:center}
 .confirm-overlay.active{display:flex}
@@ -667,12 +671,29 @@ function recalcBalance(){
   allData.forEach(r=>{run+=(r.income||0)-(r.expense||0);r.balance=Math.round(run*100)/100});
 }
 
+function normalizeReimburseStatus(r){
+  // Status: 0=none, 1=unreimbursed, 2=reimbursed
+  if(r.reimbursed && r.unreimbursed){r.unreimbursed=false;}
+  r._status = r.reimbursed ? 2 : (r.unreimbursed ? 1 : 0);
+}
+function getReimburseStatus(r){return r._status||0}
+function getStatusText(s){return s===1?'未报销':(s===2?'已报销':'未标记')}
+function getStatusClass(s){return s===1?'row-unreimbursed':(s===2?'row-reimbursed':'')}
+function getFlagClass(s){return s===1?'action-flag active':(s===2?'action-flag reimbursed':'action-flag')}
+function getFlagTitle(s){return s===1?'取消未报销标记':(s===2?'取消已报销标记':'标记状态')}
+function getFlagFill(s){return s===1||s===2?'currentColor':'none'}
+function getFlagIcon(s){
+  if(s===1)return '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>';
+  if(s===2)return '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>';
+  return '<circle cx="12" cy="12" r="10"/>';
+}
+
 // ===== Init =====
 async function init(){
   try{
     document.getElementById('loadingScreen').classList.remove('hidden');
     allData = await loadData();
-    allData.forEach(r=>{if(r.id!==undefined)r.id=String(r.id);r.unreimbursed=!!r.unreimbursed});
+    allData.forEach(r=>{if(r.id!==undefined)r.id=String(r.id);r.unreimbursed=!!r.unreimbursed;r.reimbursed=!!r.reimbursed;normalizeReimburseStatus(r)});
     unreimbursedIds=allData.filter(r=>r.unreimbursed).map(r=>String(r.id));
     recalcBalance();
     if(allData.length>0){
@@ -836,8 +857,8 @@ function applyFilters(){
     if(cat&&r.category!==cat)return false;
     if(month&&getMonth(r.date)!==month)return false;
     if(search){const t=((r.reason||'')+(r.payer||'')+(r.note||'')).toLowerCase();if(!t.includes(search))return false}
-    if(unFilter==='1'&&!r.unreimbursed)return false;
-    if(unFilter==='0'&&r.unreimbursed)return false;
+    if(unFilter==='1'&&getReimburseStatus(r)!==1)return false;
+    if(unFilter==='0'&&getReimburseStatus(r)===1)return false;
     return true;
   });
   sortData();currentPage=1;renderAll();
@@ -1023,12 +1044,16 @@ async function toggleUnreimbursed(id){
   id=String(id);
   const r=allData.find(x=>String(x.id)===id);
   if(!r)return;
-  const newVal=!r.unreimbursed;
+  const status=getReimburseStatus(r);
+  let patch, nextStatus;
+  if(status===0){nextStatus=1;patch={unreimbursed:true,reimbursed:false};}
+  else if(status===1){nextStatus=2;patch={unreimbursed:false,reimbursed:true};}
+  else{nextStatus=0;patch={unreimbursed:false,reimbursed:false};}
   try{
-    await updateRecord(id,{unreimbursed:newVal});
-    r.unreimbursed=newVal;
-    if(newVal){if(!unreimbursedIds.includes(id))unreimbursedIds.push(id)}
-    else{const ui=unreimbursedIds.indexOf(id);if(ui>=0)unreimbursedIds.splice(ui,1)}
+    await updateRecord(id,patch);
+    r.unreimbursed=patch.unreimbursed;
+    r.reimbursed=patch.reimbursed;
+    r._status=nextStatus;
     updateSummary();applyFilters();
   }catch(e){alert('更新失败: '+e.message)}
 }
