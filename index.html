@@ -670,7 +670,6 @@ function recalcBalance(){
   let run=0;
   allData.forEach(r=>{run+=(r.income||0)-(r.expense||0);r.balance=Math.round(run*100)/100});
 }
-}
 // ===== Init =====
 async function init(){
   try{
